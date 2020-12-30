@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkCMF [ WE CAN DO IT MORE SIMPLE ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2013-2019 http://www.thinkcmf.com All rights reserved.
+// | Copyright (c) 2013-present http://www.thinkcmf.com All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -15,7 +15,7 @@ use app\admin\logic\MenuLogic;
 use app\admin\model\ThemeModel;
 use app\user\logic\UserActionLogic;
 use cmf\controller\BaseController;
-use think\Db;
+use think\facade\Db;
 use think\facade\Lang;
 
 require_once __DIR__ . '/../common.php';
@@ -32,16 +32,28 @@ class IndexController extends BaseController
             abort(500, '目录' . realpath(CMF_ROOT . 'data') . '无法写入！');
         }
 
-        $langSet = request()->langset();
-        Lang::load([
+        $langSet = $this->app->lang->getLangSet();
+        $this->app->lang->load([
             dirname(__DIR__) . '/lang/' . $langSet . ".php"
         ]);
+
 
     }
 
     protected function _initializeView()
     {
-        config('template.view_path', dirname(__DIR__) . '/view/');
+        $root           = cmf_get_root();
+        $viewReplaceStr = [
+            '__ROOT__'     => $root,
+//            '__TMPL__'     => "{$root}/{$themePath}",
+            '__STATIC__'   => "{$root}/static",
+            '__WEB_ROOT__' => $root
+        ];
+        $this->view->engine()->config([
+            'view_path'          => dirname(__DIR__) . '/view/',
+            'tpl_replace_string' => $viewReplaceStr
+        ]);
+//        config('template.view_path', dirname(__DIR__) . '/view/');
     }
 
     // 安装首页
@@ -201,7 +213,8 @@ class IndexController extends BaseController
             strlen($userPass) < 6 && $this->error("密码长度最少6位");
             strlen($userPass) > 32 && $this->error("密码长度最多32位");
 
-            $db     = Db::connect($dbConfig);
+            $this->updateDbConfig($dbConfig);
+            $db     = Db::connect('install_db');
             $dbName = $this->request->param('dbname');
             $sql    = "CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET " . $dbConfig['charset'];
             $db->execute($sql) || $this->error($db->getError());
@@ -262,7 +275,8 @@ class IndexController extends BaseController
 
         $sqlIndex = $this->request->param('sql_index', 0, 'intval');
 
-        $db = Db::connect($dbConfig);
+        $this->updateDbConfig($dbConfig);
+        $db = Db::connect('install_db');
 
         if ($sqlIndex >= count($sql)) {
             $installError = session('install.error');
@@ -397,11 +411,12 @@ class IndexController extends BaseController
             $dbConfig         = $this->request->param();
             $dbConfig['type'] = "mysql";
 
+            $this->updateDbConfig($dbConfig);
+
             $supportInnoDb = false;
 
             try {
-//                Db::connect($dbConfig)->query("SELECT VERSION();");
-                $engines = Db::connect($dbConfig)->query("SHOW ENGINES;");
+                $engines = Db::connect('install_db')->query("SHOW ENGINES;");
 
                 foreach ($engines as $engine) {
                     if ($engine['Engine'] == 'InnoDB' && $engine['Support'] != 'NO') {
@@ -426,6 +441,26 @@ class IndexController extends BaseController
     public function testRewrite()
     {
         $this->success('success');
+    }
+
+    /**
+     * 加载模板输出
+     * @access protected
+     * @param string $template 模板文件名
+     * @param array  $vars     模板输出变量
+     * @param array  $config   模板参数
+     * @return mixed
+     */
+    protected function fetch($template = '', $vars = [], $config = [])
+    {
+        return $this->view->fetch($template, $vars, $config);;
+    }
+
+    private function updateDbConfig($dbConfig)
+    {
+        $oldDbConfig                              = config('database');
+        $oldDbConfig['connections']['install_db'] = $dbConfig;
+        config($oldDbConfig, 'database');
     }
 
 }

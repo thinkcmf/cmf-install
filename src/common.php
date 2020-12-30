@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkCMF [ WE CAN DO IT MORE SIMPLE ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2013-2019 http://www.thinkcmf.com All rights reserved.
+// | Copyright (c) 2013-present http://www.thinkcmf.com All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -90,7 +90,7 @@ function sp_execute_sql($db, $sql)
 
 /**
  * 显示提示信息
- * @param  string $msg 提示信息
+ * @param string $msg 提示信息
  */
 function sp_show_msg($msg, $class = '')
 {
@@ -153,7 +153,7 @@ function sp_create_db_config($config)
         }
 
         if (strpos(cmf_version(), '5.0.') === false) {
-            $confDir = CMF_DATA . 'config/'; // 5.1
+            $confDir = CMF_DATA . 'config/'; // 5.1 || 6.0
         } else {
             $confDir = CMF_DATA . 'conf/'; // 5.0
         }

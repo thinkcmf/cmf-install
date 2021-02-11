@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkCMF [ WE CAN DO IT MORE SIMPLE ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2013-2019 http://www.thinkcmf.com All rights reserved.
+// | Copyright (c) 2013-present http://www.thinkcmf.com All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -204,7 +204,7 @@ class IndexController extends BaseController
             $db     = Db::connect($dbConfig);
             $dbName = $this->request->param('dbname');
             $sql    = "CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET " . $dbConfig['charset'];
-            $db->execute($sql) || $this->error($db->getError());
+            $db->execute($sql);
 
             $dbConfig['database'] = $dbName;
 
@@ -416,6 +416,46 @@ class IndexController extends BaseController
                 $this->success('验证成功！');
             } else {
                 $this->error('数据库账号密码验证通过，但不支持InnoDb!');
+            }
+        } else {
+            $this->error('非法请求方式！');
+        }
+
+    }
+
+    public function testDataExist()
+    {
+        if ($this->request->isPost()) {
+            $dbConfig         = $this->request->param();
+            $dbConfig['type'] = "mysql";
+            $canCreateDbAndImportData = false;
+
+            
+
+
+            try {
+                //检查 cmf_admin_menu  
+                $table = $dbConfig['dbprefix']."admin_menu";
+                // Db::connect($dbConfig)->query("use ".$dbConfig['dbname'].";");
+                $tableExist = Db::connect($dbConfig)->query("show tables like '".$table."';");
+                if($tableExist){
+                    $dataExist = Db::connect($dbConfig)->query("select * from ".$table." where 1;");
+                    //存在数据，则警告
+                    if(is_array($dataExist) && count($dataExist) >0){
+                        $canCreateDbAndImportData = false;
+                    }else{
+                        $canCreateDbAndImportData = true;
+                    }
+                }else{
+                    $canCreateDbAndImportData = true;
+                }
+            } catch (\Exception $e) {
+                $this->success('验证成功！');
+            }
+            if ($canCreateDbAndImportData) {
+                $this->success('验证成功！');
+            } else {
+                $this->error('配置的数据库存在数据,请更换数据库或者清空数据');
             }
         } else {
             $this->error('非法请求方式！');

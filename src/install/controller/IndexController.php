@@ -129,7 +129,7 @@ class IndexController extends BaseController
             $err++;
         }
 
-        if (extension_loaded('fileinfo')) {
+        if (class_exists('SplFileInfo')) {
             $data['fileinfo'] = '<i class="fa fa-check correct"></i> 已开启';
         } else {
             $data['fileinfo'] = '<i class="fa fa-remove error"></i> 未开启';
@@ -154,22 +154,23 @@ class IndexController extends BaseController
             $data['show_always_populate_raw_post_data_tip'] = true;
             $err++;
         } else {
-
             $data['always_populate_raw_post_data'] = '<i class="fa fa-check correct"></i> 已关闭';
         }
 
         $folders    = [
+            realpath(CMF_ROOT . 'api') . DIRECTORY_SEPARATOR,
+            realpath(CMF_ROOT . 'app') . DIRECTORY_SEPARATOR,
             realpath(CMF_ROOT . 'data') . DIRECTORY_SEPARATOR,
-            realpath('./plugins') . DIRECTORY_SEPARATOR,
-            realpath('./themes') . DIRECTORY_SEPARATOR,
-            realpath('./upload') . DIRECTORY_SEPARATOR,
-
+            realpath(WEB_ROOT . 'plugins') . DIRECTORY_SEPARATOR,
+            realpath(WEB_ROOT . 'themes') . DIRECTORY_SEPARATOR,
+            realpath(WEB_ROOT . 'themes/admin_simpleboot3') . DIRECTORY_SEPARATOR,
+            realpath(WEB_ROOT . 'upload') . DIRECTORY_SEPARATOR,
         ];
         $newFolders = [];
         foreach ($folders as $dir) {
             $testDir = $dir;
             sp_dir_create($testDir);
-            if (sp_testwrite($testDir)) {
+            if (cmf_test_write($testDir)) {
                 $newFolders[$dir]['w'] = true;
             } else {
                 $newFolders[$dir]['w'] = false;
@@ -277,21 +278,18 @@ class IndexController extends BaseController
         $sqlIndex = $this->request->param('sql_index', 0, 'intval');
 
         $this->updateDbConfig($dbConfig);
-        $db = Db::connect('install_db');
-
+        $db = Db::connect('install_db', true);
         if ($sqlIndex >= count($sql)) {
             $installError = session('install.error');
             $this->success("安装完成!", '', ['done' => 1, 'error' => $installError]);
         }
 
         $sqlToExec = $sql[$sqlIndex] . ';';
-
-        $result = sp_execute_sql($db, $sqlToExec);
+        $result    = sp_execute_sql($db, $sqlToExec);
 
         if (!empty($result['error'])) {
             $installError = session('install.error');
             $installError = empty($installError) ? 0 : $installError;
-
             session('install.error', $installError + 1);
             $this->error($result['message'], '', [
                 'sql'       => $sqlToExec,
@@ -363,6 +361,8 @@ class IndexController extends BaseController
     public function installAppMenus()
     {
         $apps = cmf_scan_dir(CMF_ROOT . 'app/*', GLOB_ONLYDIR);
+        array_push($apps, 'admin', 'user');
+        $apps = array_unique($apps);
         foreach ($apps as $app) {
             // 导入后台菜单
             MenuLogic::importMenus($app);
@@ -461,6 +461,9 @@ class IndexController extends BaseController
     {
         $oldDbConfig                              = config('database');
         $oldDbConfig['connections']['install_db'] = $dbConfig;
+        if (cmf_is_cli()) {
+            $oldDbConfig['connections']['install_db']['break_reconnect'] = true;
+        }
         config($oldDbConfig, 'database');
     }
 

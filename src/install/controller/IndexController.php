@@ -17,6 +17,7 @@ use app\user\logic\UserActionLogic;
 use cmf\controller\BaseController;
 use think\facade\Db;
 use think\facade\Lang;
+use think\migration\Migrate;
 
 require_once __DIR__ . '/../common.php';
 
@@ -314,11 +315,32 @@ class IndexController extends BaseController
 
         $result = sp_create_db_config($dbConfig);
 
+        cmf_clear_cache();
+
         if ($result) {
             $this->success("数据配置文件写入成功!");
         } else {
             $this->error("数据配置文件写入失败!");
         }
+    }
+
+    public function migrate()
+    {
+        // run the migrations
+        $migrate = new Migrate();
+        $migrate->migrate();
+
+        $apps = cmf_scan_dir(app()->getAppPath() . '*', GLOB_ONLYDIR);
+        foreach ($apps as $app) {
+            $migrate = new Migrate($app);
+            $path    = $migrate->getPath();
+            if (!is_dir($path)) {
+                continue;
+            }
+            $migrate->migrate();
+        }
+
+        $this->success("数据库迁移完成!");
     }
 
     public function setSite()
@@ -377,6 +399,7 @@ class IndexController extends BaseController
     public function installAppHooks()
     {
         $apps = cmf_scan_dir(CMF_ROOT . 'app/*', GLOB_ONLYDIR);
+        array_push($apps, 'admin', 'user');
         foreach ($apps as $app) {
 
             // 导入应用钩子
@@ -390,6 +413,7 @@ class IndexController extends BaseController
     public function installAppUserActions()
     {
         $apps = cmf_scan_dir(CMF_ROOT . 'app/*', GLOB_ONLYDIR);
+        array_push($apps, 'admin', 'user');
         foreach ($apps as $app) {
             // 导入应用用户行为
             UserActionLogic::importUserActions($app);
